@@ -10,7 +10,8 @@
 - [ ] Trivy 43 HIGH (ocho CVE), npm audit 3 HIGH/12 MODERATE, input/DoS GHSA con test RED/GREEN y revisión independiente aceptados.
 - [ ] Recuperar informe adversarial, ejecutar/confirmar pruebas de abuso y retests.
 - [ ] Inspeccionar licencias transitivas/LGPL, incertidumbres SBOM, THIRD_PARTY_NOTICES y marcas; sign-off distribución.
-- [ ] Inspector CLI+CI, ShellCheck/Hadolint CI, evaluación CodeQL/Scorecard y demostración de check rojo bloqueante.
+- [x] Inspector CLI 2.13.0, ShellCheck 0.11.0 y Hadolint 2.14.0 **ejecutados en draft PR #23**, sin merge ([Inspector](https://github.com/aldo80st/workstation-mcp-bridge/actions/runs/41270504361), [linters](https://github.com/aldo80st/workstation-mcp-bridge/actions/runs/41270504232)).
+- [ ] Revisar e integrar PR #23, evaluar CodeQL/Scorecard y demostrar check rojo bloqueante mediante main ruleset.
 - [ ] Main ruleset/protección y required checks confirmados en GitHub (#18).
 - [ ] SBOM, digest, inventario, scanner database/resultados de imagen **final** archivados.
 - [ ] Revisión de backlog #2–#16/#18/#20 y aprobación expresa del responsable para merge/release.
