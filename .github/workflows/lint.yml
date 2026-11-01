@@ -1,0 +1,67 @@
+name: Pinned ShellCheck and Hadolint
+
+on:
+  push:
+    branches: ["feat/**", "ci/**", "main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shell-and-dockerfile-lint:
+    name: pinned-shellcheck-hadolint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Install upstream release binaries with SHA256 verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin_dir="$RUNNER_TEMP/wmb-pinned-linters"
+          mkdir -p "$bin_dir"
+          curl --fail --location --silent --show-error --retry 3             "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz"             --output "$bin_dir/shellcheck.tar.xz"
+          printf '%s  %s\n'             '8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198'             "$bin_dir/shellcheck.tar.xz" | sha256sum --check --
+          tar -xJf "$bin_dir/shellcheck.tar.xz" -C "$bin_dir"             shellcheck-v0.11.0/shellcheck
+          install -m 0755 "$bin_dir/shellcheck-v0.11.0/shellcheck" "$bin_dir/shellcheck"
+
+          curl --fail --location --silent --show-error --retry 3             "https://github.com/hadolint/hadolint/releases/download/v2.14.0/hadolint-linux-x86_64"             --output "$bin_dir/hadolint"
+          printf '%s  %s\n'             '6bf226944684f56c84dd014e8b979d27425c0148f61b3bd99bcc6f39e9dc5a47'             "$bin_dir/hadolint" | sha256sum --check --
+          chmod 0755 "$bin_dir/hadolint"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+
+      - name: ShellCheck 0.11.0 — real project scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          shellcheck --version
+          shellcheck             images/workstation-mcp/entrypoint.sh             scripts/smoke-mcp.sh             scripts/test-tunnel-local.sh             scripts/validate-local.sh
+
+      - name: Hadolint 2.14.0 — runtime Dockerfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          hadolint --version
+          hadolint images/workstation-mcp/Dockerfile
+
+      - name: Negative controls — known-bad fixtures must be rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+          printf '#!/bin/sh\nif then\n' > "$tmp_dir/bad.sh"
+          if shellcheck "$tmp_dir/bad.sh" >/dev/null 2>&1; then
+            echo 'ShellCheck erroneously accepted invalid shell syntax' >&2
+            exit 1
+          fi
+          printf 'FROM\n' > "$tmp_dir/bad.Dockerfile"
+          if hadolint "$tmp_dir/bad.Dockerfile" >/dev/null 2>&1; then
+            echo 'Hadolint erroneously accepted invalid Dockerfile syntax' >&2
+            exit 1
+          fi
+          echo 'Both linter negative fixtures rejected as expected.'
