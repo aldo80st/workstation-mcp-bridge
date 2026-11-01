@@ -54,6 +54,8 @@ jobs:
                   for item in result.get('Vulnerabilities') or []:
                       s=item.get('Severity')
                       if s in counts: counts[s]+=1
+                      if s == 'CRITICAL':
+                          print('CRITICAL', result.get('Target'), item.get('VulnerabilityID'), item.get('PkgName'), 'installed='+str(item.get('InstalledVersion')), 'fixed='+str(item.get('FixedVersion')))
               print('Trivy:',counts)
           else:
               print('Trivy report unavailable (tool failed); scanner evidence incomplete')
