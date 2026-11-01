@@ -22,8 +22,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Unit tests
         run: |
-          python3 -m pip install --break-system-packages pytest
-          python3 -m pytest tests/test_configuration.py -q
+          python3 -m pip install --break-system-packages pytest==9.2.0 PyYAML==6.0.3
+          python3 -m pytest -q
       - name: Compose dry-run
         run: docker compose config --quiet
       - name: Open refuses missing user workspace
@@ -35,6 +35,7 @@ jobs:
         run: |
           printf 'MCP_SMOKE_FIXTURE\n' > workspace/README.txt
           chmod 644 workspace/README.txt
+          ln -s /etc/passwd workspace/outside-link
           printf 'WMB_HOST_SECRET_MARKER\n' > /tmp/wmb-ci-host-secret.txt
       - name: Build runtime for actual runner architecture
         run: docker compose --progress plain build
@@ -56,9 +57,15 @@ jobs:
         env:
           MCP_URL: "http://127.0.0.1:18795/mcp"
         run: python3 -m unittest discover -s tests/integration -p test_mcp.py -v
+      - name: Startup rejection tests
+        run: python3 -m unittest discover -s tests/integration -p test_startup.py -v
       - name: Verify optional tunnel image manifests
+        env:
+          CONTROL_PLANE_TUNNEL_ID: "tunnel_0123456789abcdef0123456789abcdef"
         run: |
-          docker buildx imagetools inspect ghcr.io/openai/tunnel-client:v0.0.19 | grep -E 'linux/(amd64|arm64)'
+          tunnel_image=$(docker compose -f compose.yaml -f compose.tunnel.yaml --profile tunnel config --images | grep '^ghcr.io/openai/tunnel-client:')
+          docker manifest inspect "$tunnel_image" > /tmp/wmb-tunnel-manifest.json
+          python3 -c 'import json; d=json.load(open("/tmp/wmb-tunnel-manifest.json")); assert {"amd64", "arm64"} <= {m["platform"]["architecture"] for m in d["manifests"]}'
       - name: Verify optional tunnel Compose config without real credentials
         env:
           CONTROL_PLANE_TUNNEL_ID: "tunnel_0123456789abcdef0123456789abcdef"
@@ -70,6 +77,10 @@ jobs:
           docker compose -f compose.yaml -f compose.tunnel.yaml --profile tunnel run --rm --no-deps tunnel-client --help >/tmp/wmb-tunnel-help.txt
           test -s /tmp/wmb-tunnel-help.txt
           rm secrets/control-plane-api-key
+      - name: Tunnel synthetic secret startup and backend discovery
+        env:
+          MCP_HOST_PORT: "18795"
+        run: scripts/test-tunnel-local.sh
       - name: Stop restricted before open profile test
         env:
           MCP_HOST_PORT: "18795"
@@ -99,6 +110,14 @@ jobs:
             sleep 1
           done
           grep -q 'WMB_OPEN_COMMAND_OK' test-open/command.txt
+      - name: Restore Restricted and verify regression tests
+        env:
+          MCP_HOST_PORT: "18795"
+          MCP_URL: "http://127.0.0.1:18795/mcp"
+        run: |
+          docker compose up -d --no-build --wait --wait-timeout 90
+          python3 -m unittest discover -s tests/integration -p test_mcp.py -v
+          grep -q OPEN_SMOKE_OK test-open/allowed.txt
       - name: Runtime diagnostics on failure
         if: failure()
         env:
@@ -110,5 +129,7 @@ jobs:
         if: always()
         env:
           MCP_HOST_PORT: "18795"
-        run: docker compose -f compose.yaml -f compose.open.yaml down --remove-orphans || true
+          MCP_OPEN_WORKSPACE_PATH: ${{ github.workspace }}/test-open
+        run: |
+          docker compose -f compose.yaml -f compose.open.yaml down --remove-orphans || true
           docker compose down --remove-orphans || true

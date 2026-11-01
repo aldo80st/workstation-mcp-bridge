@@ -17,3 +17,6 @@ __pycache__
 *.p12
 *.pfx
 *secret*
+
+.evidence
+.superpowers

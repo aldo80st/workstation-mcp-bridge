@@ -6,10 +6,12 @@ services:
       MCP_OPEN_ACK: "${MCP_OPEN_ACK:-}"
       MCP_PORT: "${MCP_PORT:-8765}"
       MCP_PATH: "${MCP_PATH:-/mcp}"
-      HOME: /home/node
+      HOME: /tmp/wmb-home
       NODE_ENV: production
     volumes:
       - type: bind
         source: ${MCP_OPEN_WORKSPACE_PATH:?Set MCP_OPEN_WORKSPACE_PATH explicitly}
         target: /workspace
+        bind:
+          create_host_path: false
         read_only: false

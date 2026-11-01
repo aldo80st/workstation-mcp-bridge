@@ -25,7 +25,6 @@ jobs:
       - name: Build disposable image for audit
         run: docker compose build
       - name: Trivy vulnerability scan (initial advisory mode)
-        continue-on-error: true
         run: |
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
@@ -34,13 +33,17 @@ jobs:
             --severity HIGH,CRITICAL --format json \
             --output /scan/trivy-report.json workstation-mcp-bridge:local
       - name: Syft SBOM (SPDX JSON)
-        continue-on-error: true
         run: |
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "$PWD:/scan:rw" \
             anchore/syft:v1.55.0 docker:workstation-mcp-bridge:local \
             -o spdx-json=/scan/sbom.spdx.json
+      - name: Record exact image identity
+        run: |
+          docker image inspect workstation-mcp-bridge:local > image-inspect.json
+          test -s trivy-report.json
+          test -s sbom.spdx.json
       - name: Summarize findings without disclosing artifacts
         run: |
           python3 - <<'PY'
@@ -68,5 +71,6 @@ jobs:
           path: |
             trivy-report.json
             sbom.spdx.json
+            image-inspect.json
           if-no-files-found: warn
           retention-days: 7
