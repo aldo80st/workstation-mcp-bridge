@@ -3,6 +3,9 @@
 Actual running-container, control-plane and ChatGPT acceptance remain separate.
 """
 from pathlib import Path
+import subprocess
+import shutil
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "activate-open-pilot.sh"
@@ -27,3 +30,9 @@ def test_switch_targets_single_tunnel_and_can_rollback():
         assert item in source
     assert "docker compose down" not in source
     assert "docker system prune" not in source
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="Bash is required for the operator script")
+def test_script_has_valid_bash_syntax():
+    assert SCRIPT.is_file()
+    check = subprocess.run(["bash", "-n", str(SCRIPT)], capture_output=True, text=True)
+    assert check.returncode == 0, check.stderr
