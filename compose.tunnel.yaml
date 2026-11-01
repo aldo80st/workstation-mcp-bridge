@@ -2,7 +2,7 @@
 # Requires a real Tunnel ID and an untracked local key file.
 services:
   tunnel-client:
-    image: ghcr.io/openai/tunnel-client:v1.2.3
+    image: ghcr.io/openai/tunnel-client:v0.0.19
     profiles: ["tunnel"]
     restart: unless-stopped
     depends_on:
