@@ -1,12 +1,16 @@
-# Compatibility matrix
+# Matriz de clientes — corte 2026-10-31
 
-| Client/test | OS/CPU | Transport/auth | Evidence/status |
+Evidencias de `687d359afca4c96ee5bba3c325ac6ca63d1be971`, [PR #21](https://github.com/aldo80st/workstation-mcp-bridge/pull/21) y el usuario. **NO-GO** para distribución; cada afirmación indica su alcance.
+
+| Cliente | OS/arquitectura | Transporte | Estado / evidencia |
 |---|---|---|---|
-| Python urllib JSON-RPC harness | Ubuntu 26.10 ARM64 | Streamable HTTP 2025-03-26 / local loopback | initialize, list, read, negative calls verified locally |
-| Container Node fetch probe | Debian container ARM64 | Docker bridge HTTP / private bridge | recorded separately in local evidence |
-| GitHub Actions native smoke | Linux ARM64 + AMD64 | Streamable HTTP / isolated runner | original 9efbea3 passed run 41266050115; updated commit requires new CI |
-| tunnel-client 0.0.19 | Linux ARM64 | internal HTTP + synthetic identity | CLI, secret-file startup and local error handling; no external E2E claim |
-| ChatGPT through Secure MCP Tunnel | target account | authorized tunnel | pending real credentials and representative tool call |
-| MCP Inspector/other clients | not tested | not asserted | pending |
+| Harness Python urllib | Ubuntu 26.10 ARM64 | MCP streamable HTTP 2025-03-26, loopback | **tested**: initialize, list, read, direct deny, malformed; `tests/integration/test_mcp.py` |
+| CI nativo | Ubuntu runner AMD64 y ARM64 | Streamable HTTP, entorno aislado | **tested**: [41267693747](https://github.com/aldo80st/workstation-mcp-bridge/actions/runs/41267693747) |
+| Node fetch probe | Debian ARM64 | Docker private HTTP | **tested parcial**: initialize, evidencia local previa |
+| Tunnel-client 0.0.19 | Linux ARM64 | Docker backend HTTP, Secure MCP Tunnel opcional | **tested**: pruebas sintéticas de startup y E2E real vía ChatGPT |
+| ChatGPT (complemento privado) | Cuenta autorizada | Secure MCP Tunnel real | **tested E2E**: `read_file /workspace/README.txt` devuelve `MCP_SMOKE_FIXTURE`, `isError=false`; usuario confirmó |
+| Codex (complemento conectado) | XPS Ubuntu 26.10 ARM64 | MCP remoto | **tested reportado**: lectura del mismo fixture; sin matriz completa |
+| MCP Inspector 2.13.0 | GitHub runner ubuntu-24.04 AMD64 | MCP streamable HTTP / red privada Docker | **tested en draft PR #23**: tools/list y read_file en [CI successful 41270504361](https://github.com/aldo80st/workstation-mcp-bridge/actions/runs/41270504361); instalación local interrumpida sin comprobar |
+| Claude / Cursor / VS Code / otros | No probado | No afirmado | **not-tested** |
 
-The pinned base and tunnel manifest include ARM64/AMD64. Manifest support does not prove runtime behavior. No universal compatibility claim.
+Open sólo se probó con workspace sintético desechable, **no** con ChatGPT. Manifest multi-arquitectura no equivale a interoperabilidad universal.
