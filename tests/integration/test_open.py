@@ -27,6 +27,13 @@ class OpenProfileTest(unittest.TestCase):
         }, 100)
         self.assertIn("result", result, result)
 
+    def test_command_runs_inside_opted_in_workspace(self):
+        result = mcp("tools/call", {
+            "name": "start_process",
+            "arguments": {"command": "sh -c 'printf WMB_OPEN_COMMAND_OK > /workspace/command.txt'"}
+        }, 102)
+        self.assertIn("result", result, result)
+
     def test_process_tool_is_discoverable(self):
         result = mcp("tools/list", {}, 101)
         self.assertIn("result", result, result)

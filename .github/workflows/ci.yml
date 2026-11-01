@@ -67,6 +67,8 @@ jobs:
           printf 'synthetic-unused-key-for-compose-check\n' > secrets/control-plane-api-key
           chmod 600 secrets/control-plane-api-key
           docker compose -f compose.yaml -f compose.tunnel.yaml --profile tunnel config --quiet
+          docker compose -f compose.yaml -f compose.tunnel.yaml --profile tunnel run --rm --no-deps tunnel-client --help >/tmp/wmb-tunnel-help.txt
+          test -s /tmp/wmb-tunnel-help.txt
           rm secrets/control-plane-api-key
       - name: Stop restricted before open profile test
         env:
@@ -92,6 +94,11 @@ jobs:
         run: |
           python3 -m unittest discover -s tests/integration -p test_open.py -v
           grep -q 'OPEN_SMOKE_OK' test-open/allowed.txt
+          for i in $(seq 1 20); do
+            if [ -f test-open/command.txt ]; then break; fi
+            sleep 1
+          done
+          grep -q 'WMB_OPEN_COMMAND_OK' test-open/command.txt
       - name: Runtime diagnostics on failure
         if: failure()
         env:
