@@ -1,7 +1,7 @@
 """Contract for optional, isolated Open-mode development access.
 
-These tests intentionally precede the overlay/script (TDD RED) and then
-exercise the actual Docker Compose model on GitHub native ARM64/AMD64 CI.
+Tests validate the isolated Compose overlay, opt-in operator runbook, and
+actual rendered Compose model on native ARM64/AMD64 CI.
 No credentials or user-specific filesystem paths are checked in.
 """
 import json
@@ -15,7 +15,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 OVERLAY = ROOT / "compose.dev-open.yaml"
-SCRIPT = ROOT / "scripts" / "dev-open.sh"
+RUNBOOK = ROOT / "docs" / "dev-open-pilot.md"
 
 
 def test_open_sidecar_has_no_host_port_or_privileged_mounts():
@@ -45,19 +45,18 @@ def test_open_sidecar_has_no_host_port_or_privileged_mounts():
         "http://workstation-mcp-open:"), "Reuse existing tunnel credentials; do not create a second tunnel"
 
 
-def test_switch_is_opt_in_and_preserves_restricted_fallback():
-    assert SCRIPT.is_file(), "Reversible activation script not yet implemented"
-    script = SCRIPT.read_text()
-    assert "I_ACCEPT_OPEN_MODE_RISKS" in script
-    assert "workstation-mcp-open" in script
-    assert "workstation-mcp" in script
-    assert "tunnel-client" in script
-    assert "--force-recreate" in script
-    assert "--no-deps" in script
-    assert "docker compose down" not in script
-    assert "docker system prune" not in script
-    assert "sudo " not in script
-    assert "docker.sock" in script  # explicitly rejected mount exposure in comments/contracts
+def test_manual_switch_is_documented_with_restricted_fallback():
+    assert RUNBOOK.is_file(), "Operator runbook not yet implemented"
+    procedure = RUNBOOK.read_text()
+    for required in (
+        "MCP_DEV_WORKSPACE_PATH", "MCP_OPEN_ACK",
+        "workstation-mcp-open", "tunnel-client",
+        "--force-recreate", "--no-deps", "--no-build",
+        "Restricted", "rollback",
+    ):
+        assert required in procedure, required
+    assert "docker compose down" not in procedure
+    assert "docker system prune" not in procedure
 
 
 @pytest.mark.skipif(not shutil.which("docker"), reason="Docker Compose is tested in hosted native runners")
@@ -80,7 +79,7 @@ def test_rendered_open_contract_and_tunnel_backend():
     assert restricted["environment"]["MCP_SECURITY_PROFILE"] == "restricted"
     assert restricted["volumes"][0]["read_only"] is True
     assert opened["environment"]["MCP_SECURITY_PROFILE"] == "open"
-    assert opened["volumes"][0]["read_only"] is False
+    assert opened["volumes"][0].get("read_only", False) is False
     assert opened.get("ports") is None
     assert tunnel["environment"]["MCP_SERVER_URL"] == "http://workstation-mcp-open:8765/mcp"
     assert tunnel["secrets"], "Tunnel continues to read existing secret file"
