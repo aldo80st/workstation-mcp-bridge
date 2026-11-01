@@ -1,0 +1,69 @@
+name: Containers and MCP smoke
+on:
+  push:
+    branches: ["feat/**", "main"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-and-smoke:
+    name: smoke-${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Unit tests
+        run: |
+          python3 -m pip install --break-system-packages pytest
+          python3 -m pytest tests -q
+      - name: Compose dry-run
+        run: docker compose config --quiet
+      - name: Open refuses missing user workspace
+        run: |
+          if docker compose -f compose.yaml -f compose.open.yaml config --quiet; then
+            echo 'Open unexpectedly accepted unset workspace'; exit 1
+          fi
+      - name: Prepare disposable fixture
+        run: |
+          printf 'MCP_SMOKE_FIXTURE\n' > workspace/README.txt
+          chmod 644 workspace/README.txt
+      - name: Build runtime for actual runner architecture
+        run: docker compose build --progress=plain
+      - name: Start restricted runtime
+        env:
+          MCP_HOST_PORT: "18795"
+        run: docker compose up -d --no-build
+      - name: Wait for health
+        env:
+          MCP_HOST_PORT: "18795"
+        run: |
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:18795/healthz; then exit 0; fi
+            sleep 2
+          done
+          docker compose logs --tail=80 workstation-mcp
+          exit 1
+      - name: MCP contract and forbidden call
+        env:
+          MCP_URL: "http://127.0.0.1:18795/mcp"
+        run: python3 -m unittest discover -s tests/integration -v
+      - name: Runtime diagnostics on failure
+        if: failure()
+        env:
+          MCP_HOST_PORT: "18795"
+        run: |
+          docker compose ps || true
+          docker compose logs --tail=100 workstation-mcp || true
+      - name: Teardown
+        if: always()
+        env:
+          MCP_HOST_PORT: "18795"
+        run: docker compose down --remove-orphans || true
