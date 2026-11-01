@@ -1,0 +1,44 @@
+# Developer-only Open sidecar. Keep original workstation-mcp Restricted running.
+# This service has no host-published port; the already-authorized tunnel is
+# redirected only after it passes a local health/protocol check.
+# No host root, home, docker.sock, privileges, or secrets are mounted here.
+services:
+  workstation-mcp-open:
+    profiles: ["developer"]
+    image: workstation-mcp-bridge:local
+    restart: unless-stopped
+    user: "${MCP_UID:-1000}:${MCP_GID:-1000}"
+    working_dir: /workspace
+    environment:
+      MCP_SECURITY_PROFILE: open
+      MCP_OPEN_ACK: "${MCP_OPEN_ACK:-}"
+      MCP_PORT: "${MCP_PORT:-8765}"
+      MCP_PATH: "${MCP_PATH:-/mcp}"
+      HOME: /tmp/wmb-home
+      NODE_ENV: production
+    volumes:
+      - type: bind
+        source: ${MCP_DEV_WORKSPACE_PATH:?Set existing development checkout path explicitly}
+        target: /workspace
+        bind:
+          create_host_path: false
+        read_only: false
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 2
+    init: true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+process.env.MCP_PORT+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 15s
+      retries: 5
+      start_period: 45s
+    networks: [mcp-internal]
+
+  # Overrides ONLY tunnel routing when this overlay is explicitly used.
+  # No duplicate tunnel-client, ID, API key, or Docker secret definition.
+  tunnel-client:
+    environment:
+      MCP_SERVER_URL: "http://workstation-mcp-open:${MCP_PORT:-8765}${MCP_PATH:-/mcp}"
