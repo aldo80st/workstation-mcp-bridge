@@ -1,0 +1,111 @@
+schema_version: 1.0.0
+revision: 1
+scope: workstation-mcp-bridge-v0.1
+architecture_style: small-containerized-mcp-runtime-with-optional-transport-adapters
+quality_attributes:
+- name: permission-boundaries
+  priority: 1
+  rationale: AI tools operate on files and commands.
+  measurable_signal: Restricted negative tools/call and outside-mount tests are denied.
+- name: interoperability
+  priority: 2
+  rationale: The server must not depend on one provider.
+  measurable_signal: Local initialize, tools/list and tools/call work with the tunnel
+    absent.
+- name: reproducibility
+  priority: 3
+  rationale: A published configuration must work across supported architectures.
+  measurable_signal: Pinned image builds and documented configuration work on ARM64
+    and AMD64.
+components:
+- id: desktop-commander
+  responsibility: Provide OSS MCP tools within an explicit container filesystem boundary
+  owns_data:
+  - mounted authorized workspace
+  public_interfaces:
+  - mcp-stdio
+- id: supergateway
+  responsibility: Bridge Desktop Commander stdio to Streamable HTTP
+  owns_data: []
+  public_interfaces:
+  - mcp-http
+- id: security-policy
+  responsibility: Enforce restricted tool-call decisions before requests reach tooling
+  owns_data:
+  - effective policy configuration
+  public_interfaces:
+  - authorize-mcp-call
+- id: connection-adapter
+  responsibility: Optional client-facing transport without owning workstation tooling
+  owns_data: []
+  public_interfaces:
+  - client-mcp-entrypoint
+external_boundaries:
+- id: host-workspace
+  responsibility: Explicitly mounted, permission-scoped host resources
+- id: external-mcp-client
+  responsibility: MCP-capable assistant or vendor transport endpoint
+dependency_rules:
+- source: supergateway
+  target: desktop-commander
+  policy: allow-via-interface
+  via_interface: mcp-stdio
+  rationale: Bridge calls tool runtime over stdio.
+- source: connection-adapter
+  target: security-policy
+  policy: allow-via-interface
+  via_interface: authorize-mcp-call
+  rationale: All external requests cross the policy enforcement point.
+- source: connection-adapter
+  target: desktop-commander
+  policy: deny
+  rationale: Never bypass effective policy checks.
+- source: security-policy
+  target: supergateway
+  policy: allow-via-interface
+  via_interface: mcp-http
+  rationale: Only authorized calls may pass into the bridge.
+- source: desktop-commander
+  target: external-mcp-client
+  policy: deny
+  rationale: Tool runtime never embeds vendor-specific network clients.
+required_practices:
+- Restricted is default; deny prohibited tools/call, not only tools/list; minimal
+  read-only or scoped read-write mounts.
+- Open requires explicit opt-in, conspicuous warning and still an authenticated transport
+  if remotely exposed.
+- No baked-in secrets; optional tunnel ID and credential-file configurable; pin images
+  and test both CPU architectures.
+- Never expose HTTP MCP publicly without access control; avoid exposing ports if tunnel-only.
+- Upstream licenses and trademarks reviewed before publishing distributed images.
+prohibited_practices:
+- Never claim that Desktop Commander allowedDirectories alone is a host security boundary.
+- Never publish an unauthenticated open-profile MCP endpoint to Internet.
+- Never mount host root or docker.sock by default or embed API keys in image, source,
+  or logs.
+- Never require an OpenAI tunnel for local MCP compatibility.
+decision_ids:
+- ADR-001
+- ADR-002
+- ADR-003
+- ADR-004
+- ADR-005
+unresolved_questions:
+- id: Q-001
+  question: Which existing gateway can enforce MCP tools/call policy safely without
+    building a new subsystem?
+  decision_impact: Must be resolved before restricted profile can ship.
+  critical: true
+  answer: null
+- id: Q-002
+  question: Which pinned tunnel-client release and secret-file invocation pass supported-client
+    tests?
+  decision_impact: Blocks OpenAI adapter publication, not local MCP baseline.
+  critical: false
+  answer: null
+- id: Q-003
+  question: Has the project name and bundled dependency licensing been reviewed for
+    publication?
+  decision_impact: Blocks public release.
+  critical: true
+  answer: null
