@@ -91,8 +91,8 @@ docker compose -p wmb-pilot -f compose.yaml -f compose.tunnel.yaml \
 ```
 
 Confirm `MCP_SERVER_URL=http://workstation-mcp:8765/mcp`, check Restricted
-health and a fixture read. Do not call `docker compose down`,
-`docker system prune` or restart Docker system-wide as part of this drill.
+health and a fixture read. Do not tear down the whole Compose project, prune Docker resources, or
+restart Docker system-wide as part of this drill.
 
 ## Pilot acceptance gates
 
