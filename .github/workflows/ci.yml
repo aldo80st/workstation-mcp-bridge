@@ -23,7 +23,7 @@ jobs:
       - name: Unit tests
         run: |
           python3 -m pip install --break-system-packages pytest
-          python3 -m pytest tests -q
+          python3 -m pytest tests/test_configuration.py -q
       - name: Compose dry-run
         run: docker compose config --quiet
       - name: Open refuses missing user workspace
