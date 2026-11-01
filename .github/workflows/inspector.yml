@@ -1,0 +1,97 @@
+name: Official MCP Inspector protocol smoke
+
+on:
+  push:
+    branches: ["feat/**", "ci/**", "main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspector-smoke:
+    name: inspector-2.13.0-streamable-http
+    runs-on: ubuntu-24.04
+    env:
+      MCP_HOST_PORT: "18795"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Prepare synthetic fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'MCP_SMOKE_FIXTURE\n' > workspace/README.txt
+          chmod 644 workspace/README.txt
+
+      - name: Build and start isolated Restricted runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose build
+          docker compose up -d --no-build
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:18795/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          exit 1
+
+      - name: Pull official Inspector 2.13.0 and record digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull ghcr.io/modelcontextprotocol/inspector:2.13.0
+          docker image inspect             --format '{{index .RepoDigests 0}}'             ghcr.io/modelcontextprotocol/inspector:2.13.0
+
+      - name: Inspector CLI tools/list and allowed read_file E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+          runtime_id="$(docker compose ps -q workstation-mcp)"
+          test -n "$runtime_id"
+          network_name="$(docker inspect --format '{{range $name, $net := .NetworkSettings.Networks}}{{$name}}{{end}}' "$runtime_id")"
+          test -n "$network_name"
+          image='ghcr.io/modelcontextprotocol/inspector:2.13.0'
+          cli=(docker run --rm --no-healthcheck
+            --network "$network_name"
+            --cap-drop ALL --security-opt no-new-privileges
+            "$image" --cli
+            'http://workstation-mcp:8765/mcp'
+            --transport http --format json)
+          "${cli[@]}" --method tools/list > /tmp/inspector-tools.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/inspector-tools.json', encoding='utf-8') as file:
+              data = json.load(file)
+          names = {tool['name'] for tool in data['result']['tools']}
+          assert 'read_file' in names, names
+          assert 'write_file' not in names, names
+          print('Inspector 2.13.0: tools/list Restricted verified')
+          PY
+          "${cli[@]}" --method tools/call             --tool-name read_file             --tool-arg path=/workspace/README.txt > /tmp/inspector-read.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/inspector-read.json', encoding='utf-8') as file:
+              data = json.load(file)
+          assert data['result'].get('isError') is not True, data
+          assert 'MCP_SMOKE_FIXTURE' in json.dumps(data['result'])
+          print('Inspector 2.13.0: allowed read_file verified')
+          PY
+
+      - name: Diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          docker compose ps || true
+          docker compose logs --tail=50 workstation-mcp || true
+
+      - name: Remove disposable runtime
+        if: always()
+        shell: bash
+        run: docker compose down --remove-orphans || true
