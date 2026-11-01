@@ -1,0 +1,15 @@
+{
+  "name": "workstation-mcp-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@wonderwhy-er/desktop-commander": "0.3.1",
+    "supergateway": "4.2.1"
+  },
+  "overrides": {
+    "@modelcontextprotocol/sdk": "1.32.0",
+    "@modelcontextprotocol/client": "2.3.0",
+    "@modelcontextprotocol/server": "2.3.0",
+    "@modelcontextprotocol/node": "2.1.2"
+  }
+}

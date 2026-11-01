@@ -4,9 +4,6 @@ services:
     build:
       context: .
       dockerfile: images/workstation-mcp/Dockerfile
-      args:
-        DC_VERSION: "${DC_VERSION:-0.3.1}"
-        SG_VERSION: "${SG_VERSION:-4.2.1}"
     image: workstation-mcp-bridge:local
     restart: unless-stopped
     ports:
@@ -15,23 +12,27 @@ services:
       MCP_SECURITY_PROFILE: restricted
       MCP_PORT: "${MCP_PORT:-8765}"
       MCP_PATH: "${MCP_PATH:-/mcp}"
-      HOME: /home/node
+      HOME: /tmp/wmb-home
       NODE_ENV: production
-    user: "1000:1000"
+    user: "${MCP_UID:-1000}:${MCP_GID:-1000}"
     working_dir: /workspace
     volumes:
       - type: bind
         source: ${MCP_WORKSPACE_PATH:-./workspace}
         target: /workspace
+        bind:
+          create_host_path: false
         read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+    mem_limit: 1g
+    cpus: 2
     pids_limit: 128
     init: true
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+process.env.MCP_PORT+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s
-      timeout: 5s
+      timeout: 15s
       retries: 5
       start_period: 45s
     networks: [mcp-internal]

@@ -52,7 +52,7 @@ class MCPContractTest(unittest.TestCase):
             "name": "write_file",
             "arguments": {"path": "/workspace/forbidden.txt", "content": "should-not-exist"}
         }, reqid=3)
-        self.assertTrue("error" in payload or payload.get("http_status", 0) >= 400, payload)
+        self.assertEqual(payload.get("error", {}).get("code"), -32602, payload)
 
     def test_nonmounted_host_data_is_inaccessible(self):
         payload = mcp("tools/call", {
@@ -66,7 +66,40 @@ class MCPContractTest(unittest.TestCase):
             "name": "start_process",
             "arguments": {"command": "touch /workspace/prohibited-command-marker"}
         }, reqid=6)
-        self.assertTrue("error" in payload or payload.get("http_status", 0) >= 400, payload)
+        self.assertEqual(payload.get("error", {}).get("code"), -32602, payload)
+
+    def test_reads_outside_workspace_are_denied(self):
+        for path in ("/etc/passwd", "/workspace/../etc/passwd", "/workspace/outside-link"):
+            with self.subTest(path=path):
+                payload = mcp("tools/call", {"name": "read_file", "arguments": {"path": path}})
+                self.assertIn("result", payload, payload)
+                self.assertTrue(payload["result"].get("isError"), payload)
+                self.assertIn("Path not allowed", json.dumps(payload))
+                self.assertNotIn("root:x:", json.dumps(payload))
+
+    def test_multiple_reads_cannot_escape_workspace(self):
+        payload = mcp("tools/call", {"name": "read_multiple_files",
+                      "arguments": {"paths": ["/workspace/README.txt", "/etc/passwd"]}})
+        self.assertIn("MCP_SMOKE_FIXTURE", json.dumps(payload))
+        self.assertIn("Path not allowed", json.dumps(payload))
+        self.assertNotIn("root:x:", json.dumps(payload))
+
+    def test_alternate_mutation_tools_are_denied(self):
+        for name in ("edit_block", "move_file", "set_config_value", "create_directory", "interact_with_process"):
+            with self.subTest(name=name):
+                payload = mcp("tools/call", {"name": name, "arguments": {}})
+                self.assertEqual(payload.get("error", {}).get("code"), -32602, payload)
+
+    def test_unknown_method_returns_protocol_error(self):
+        payload = mcp("wmb/unknown", {})
+        self.assertEqual(payload.get("error", {}).get("code"), -32601, payload)
+
+    def test_malformed_json_is_rejected(self):
+        request = Request(URL, data=b'{broken', headers={"Content-Type": "application/json"})
+        with self.assertRaises(HTTPError) as caught:
+            urlopen(request, timeout=10)
+        self.assertEqual(caught.exception.code, 400)
+        caught.exception.close()
 
     def test_allowed_read_call(self):
         payload = mcp("tools/call", {

@@ -1,25 +1,22 @@
 # Workstation MCP Bridge
 
-**Status: Architecture approved · v0.1 · not yet an operational release.**
+A provider-neutral Desktop Commander OSS + Supergateway runtime for local MCP Streamable HTTP. Optional Secure MCP Tunnel runs in a separate container. Pilot only; stable release remains blocked by security findings and distribution review.
 
-A provider-neutral, containerized integration of the open-source Desktop Commander MCP server with Supergateway. Optional connection adapters (including OpenAI Secure MCP Tunnel) are planned, not yet implemented.
+Restricted is the default: read-only workspace, explicit read-tool allowlist enforced on direct calls, and workspace path policy. Open requires an explicit workspace and acknowledgement; it enables command execution and writes under container permissions.
 
-## Security profiles
+```sh
+mkdir -p workspace
+printf 'MCP_SMOKE_FIXTURE\n' > workspace/README.txt
+cp .env.example .env
+# Choose a free MCP_HOST_PORT; use 18795 if 8765 is occupied.
+docker compose up -d --build --wait --wait-timeout 90
+./scripts/smoke-mcp.sh
+```
 
-- **Restricted** (default): explicit workspace mounts and enforceable MCP call restrictions. Tool visibility alone is not an access-control boundary.
-- **Open** (opt-in): broader user-authorized access **only after a prominent security warning**. Open does **not** mean public or unauthenticated Internet access.
+Do not expose unauthenticated MCP to the Internet or mount host root/home or Docker socket. Open commands can access the container filesystem and network, beyond the mounted workspace. Desktop Commander path settings complement container isolation; they are not a host sandbox.
 
-**Security warning:** MCP tools may read/write files and execute commands within authorized scopes. AI automation and prompt-injection attacks can cause accidental data loss or unauthorized actions. Never publish an unauthenticated endpoint, mount host root or Docker socket by default, or commit secrets.
+See [getting started](docs/getting-started.md), [security profiles](docs/security-profiles.md), [providers](docs/providers.md), [operations](docs/operations.md), [troubleshooting](docs/troubleshooting.md), [compatibility](docs/compatibility-matrix.md), [security status](docs/security-findings.md), and [release gates](docs/release-checklist.md).
 
-## Current documentation
+## Architecture and attribution
 
-- [Project context](.ai-architect/project-context.md)
-- [Architecture contract](.ai-architect/architecture-contract.yaml)
-- [Implementation plan](.ai-architect/implementation-plan.md)
-- [Architectural decisions](.ai-architect/decisions/)
-
-No container is deployed from this repository yet. Supported platform/provider combinations will be listed only after verification.
-
-## Independence and attribution
-
-This project is independent and is not affiliated with, endorsed by, or an official version of Desktop Commander or any AI service provider. It will reuse third-party software only under the applicable licenses and notices; final distribution and trademark checks are pending.
+Accepted [ADRs](.ai-architect/decisions/) and [architecture contract](.ai-architect/architecture-contract.yaml) govern implementation. Independent project, not affiliated with or endorsed by Desktop Commander, Supergateway or OpenAI. See [NOTICE](NOTICE.md). No stable image or release is published by these instructions.

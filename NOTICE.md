@@ -10,3 +10,5 @@ Bundled runtime depends on separately published open-source packages, subject to
 - Docker Node.js base image (`node:22-bookworm-slim`): https://github.com/nodejs/docker-node — dependencies carry their own licenses.
 
 Retain upstream copyright and license texts when redistributing images. This file is NOT a completed trademark/license audit. See #4.
+
+Pinned runtime license texts: [Desktop Commander](docs/licenses/desktop-commander-MIT.txt) and [Supergateway](docs/licenses/supergateway-MIT.txt). Original project material is MIT; transitive dependencies retain their own terms and require final distribution review.
