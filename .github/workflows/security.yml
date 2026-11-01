@@ -1,7 +1,7 @@
 name: Independent security tools
 on:
   push:
-    branches: ["feat/**", "main"]
+    branches: ["feat/**", "experiment/**", "main"]
   pull_request:
   workflow_dispatch:
 permissions:

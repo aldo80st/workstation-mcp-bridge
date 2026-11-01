@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: images/workstation-mcp/Dockerfile
       args:
-        DC_VERSION: "${DC_VERSION:-0.2.43}"
+        DC_VERSION: "${DC_VERSION:-0.3.1}"
         SG_VERSION: "${SG_VERSION:-4.2.1}"
     image: workstation-mcp-bridge:local
     restart: unless-stopped
