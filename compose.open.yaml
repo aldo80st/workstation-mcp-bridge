@@ -1,0 +1,15 @@
+# WARNING: user-authorized expanded access; never publish an unauthenticated remote endpoint.
+services:
+  workstation-mcp:
+    environment:
+      MCP_SECURITY_PROFILE: open
+      MCP_OPEN_ACK: "${MCP_OPEN_ACK:-}"
+      MCP_PORT: "${MCP_PORT:-8765}"
+      MCP_PATH: "${MCP_PATH:-/mcp}"
+      HOME: /home/node
+      NODE_ENV: production
+    volumes:
+      - type: bind
+        source: ${MCP_OPEN_WORKSPACE_PATH:?Set MCP_OPEN_WORKSPACE_PATH explicitly}
+        target: /workspace
+        read_only: false

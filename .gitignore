@@ -1,0 +1,9 @@
+.env
+secrets/*
+!secrets/.gitignore
+workspace/*
+!workspace/.gitkeep
+__pycache__/
+.pytest_cache/
+.worktrees/
+.superpowers/
