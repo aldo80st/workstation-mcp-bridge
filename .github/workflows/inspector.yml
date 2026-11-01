@@ -46,8 +46,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker pull ghcr.io/modelcontextprotocol/inspector:2.13.0
-          docker image inspect             --format '{{index .RepoDigests 0}}'             ghcr.io/modelcontextprotocol/inspector:2.13.0
+          docker pull ghcr.io/modelcontextprotocol/inspector@sha256:c8fcddea6d9864e2e5fecc91454be1238e5a94388ca77ee9f8fd708df00b689a
+          docker image inspect             --format '{{index .RepoDigests 0}}'             ghcr.io/modelcontextprotocol/inspector@sha256:c8fcddea6d9864e2e5fecc91454be1238e5a94388ca77ee9f8fd708df00b689a
 
       - name: Inspector CLI tools/list and allowed read_file E2E
         shell: bash
@@ -57,7 +57,7 @@ jobs:
           test -n "$runtime_id"
           network_name="$(docker inspect --format '{{range $name, $net := .NetworkSettings.Networks}}{{$name}}{{end}}' "$runtime_id")"
           test -n "$network_name"
-          image='ghcr.io/modelcontextprotocol/inspector:2.13.0'
+          image='ghcr.io/modelcontextprotocol/inspector@sha256:c8fcddea6d9864e2e5fecc91454be1238e5a94388ca77ee9f8fd708df00b689a'
           cli=(docker run --rm --no-healthcheck
             --network "$network_name"
             --cap-drop ALL --security-opt no-new-privileges
