@@ -16,6 +16,9 @@ services:
     environment:
       CONTROL_PLANE_TUNNEL_ID: "${CONTROL_PLANE_TUNNEL_ID:?Set real tunnel ID}"
       MCP_SERVER_URL: "${MCP_SERVER_URL:-http://workstation-mcp:${MCP_PORT:-8765}${MCP_PATH:-/mcp}}"
+      # Docker restart policies do not replay Compose depends_on ordering.
+      # In v0.0.19 this also gates OAuth discovery/catalog finalization.
+      MCP_STARTUP_WAIT_TIMEOUT: "120s"
       LOG_LEVEL: info
       LOG_FORMAT: json
     command:

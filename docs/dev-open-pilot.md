@@ -3,6 +3,10 @@
 Status: pilot only. No stable release and no assumption that a healthy container
 equals a working ChatGPT connection.
 
+If readiness reports `startup catalog failed`, recover and validate Restricted
+first using [the version-specific recovery procedure](tunnel-startup-recovery.md).
+The tunnel overlay includes a bounded MCP startup wait for Docker restarts.
+
 ## Topology and scope
 
 Existing Compose project: `wmb-pilot`. Its `workstation-mcp` (Restricted)
