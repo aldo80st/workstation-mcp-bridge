@@ -54,6 +54,13 @@ class MCPContractTest(unittest.TestCase):
         }, reqid=3)
         self.assertTrue("error" in payload or payload.get("http_status", 0) >= 400, payload)
 
+    def test_nonmounted_host_data_is_inaccessible(self):
+        payload = mcp("tools/call", {
+            "name": "read_file",
+            "arguments": {"path": "/tmp/wmb-ci-host-secret.txt"}
+        }, reqid=5)
+        self.assertNotIn("WMB_HOST_SECRET_MARKER", json.dumps(payload))
+
     def test_allowed_read_call(self):
         payload = mcp("tools/call", {
             "name": "read_file",

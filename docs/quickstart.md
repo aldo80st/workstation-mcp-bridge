@@ -8,6 +8,7 @@ Docker Engine with Compose v2; Linux ARM64 or AMD64, free localhost port 8765.
 ```sh
 git clone https://github.com/aldo80st/workstation-mcp-bridge.git
 cd workstation-mcp-bridge
+git switch feat/usable-containers-v0.1  # pilot branch until PR #19 is merged
 cp .env.example .env
 mkdir -p workspace secrets
 docker compose build
