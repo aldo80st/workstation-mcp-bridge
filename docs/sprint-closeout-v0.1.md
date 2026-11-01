@@ -21,7 +21,7 @@ Corte: **2026-10-31**. Base pública: `687d359afca4c96ee5bba3c325ac6ca63d1be971`
 
 1. **Seguridad #20/#14:** Trivy 0 CRITICAL / **43 HIGH** (ocho CVE); npm audit **3 HIGH / 12 MODERATE**; no hay excepciones generales aprobadas. El aviso [GHSA-46jr-4wx8-v453](https://github.com/modelcontextprotocol/typescript-sdk/security/advisories/GHSA-46jr-4wx8-v453) exige límites de entrada y análisis de DoS además del upgrade SDK; Supergateway 4.2.1 usa límite JSON de 4 MiB. Exigir cambio mínimo, test RED/GREEN, suite y auditoría.
 2. **Adversarial #14 y legal #4:** recuperar `docs/adversarial-review.md`, `docs/third-party-license-review.md`, `THIRD_PARTY_NOTICES.md` del trabajo local previo, verificar hallazgos y retests. SBOM de 771 registros, 23 NOASSERTION reportados previamente; licencias LGPL opcionales y metadatos sin declaración requieren evaluación individual. Ninguna revisión se considera aprobada.
-3. **CI #7/#13:** Inspector 2.13.0 quedó con instalación iniciada, sin ejecución confirmada. ShellCheck/Hadolint corrieron localmente, **no** integrados en CI. Falta decidir CodeQL/Scorecard según aplicabilidad y demostrar que un PR deliberadamente rojo queda bloqueado.
+3. **CI #7/#13:** [PR #23](https://github.com/aldo80st/workstation-mcp-bridge/pull/23) (draft) integra Inspector 2.13.0 con imagen fijada por digest, ShellCheck 0.11.0 y Hadolint 2.14.0 con checksums y fixtures negativos. Los jobs [Inspector](https://github.com/aldo80st/workstation-mcp-bridge/actions/runs/41270504361) y [linters](https://github.com/aldo80st/workstation-mcp-bridge/actions/runs/41270504232) pasaron en `59b648c`, **sin merge**. Faltan evaluación CodeQL/Scorecard y PR rojo bloqueado por ruleset main.
 4. **Gobernanza #18:** main sin ruleset/protección efectiva confirmada; configurar reglas y required checks desde cuenta administradora, después probar bloqueo real.
 5. **Operación #15:** falta reinicio REAL del daemon Docker anfitrión. Hay dos contenedores ajenos: no reiniciarlos sin sudo y mantenimiento autorizado. Reiniciar el contenedor del piloto no satisface este criterio.
 6. **Distribución #4/#16:** sign-off de licencias/notice/marca, CVE individual, SBOM+scan de candidato final, revisión independiente y autorización expresa para release/merge.
@@ -32,9 +32,9 @@ Corte: **2026-10-31**. Base pública: `687d359afca4c96ee5bba3c325ac6ca63d1be971`
 |---|---|---|
 | #2, #3 | Auditoría/arquitectura y Q-001 parcialmente demostrados | Comparar contrato/ADRs y cerrar amenazas con adversarial |
 | #5, #6, #8, #9 | Núcleo, aislamiento, perfiles y Open→Restricted funcionales | Aceptación independiente + prueba de host no montado |
-| #7, #10 | Suite MCP local verificada | Inspector CLI y no prometer stdio sin prueba |
+| #7, #10 | Suite MCP local; Inspector CLI probado en CI draft #23 | Revisión e integración; no prometer stdio sin prueba |
 | #11, #12 | E2E túnel ChatGPT y lectura Codex reportados | Matriz final exacta por cliente y versión |
-| #13 | CI nativo y herramientas de escaneo ejecutadas | Inspector, ShellCheck/Hadolint, fallo intencional/required checks |
+| #13 | CI nativo, escáneres, Inspector y linters probados en draft #23 | Review/merge, CodeQL/Scorecard y required checks |
 | #14 | Revisiones delegadas, sin artefactos recuperados en este corte | Recuperar e inspeccionar informes/retests |
 | #15 | Rollback/stop/start de contenedor | Ventana autorizada de restart del daemon |
 | #4, #16, #18, #20 | **Bloqueantes** | Licencias, riesgos, branch rules y Go/No-Go final |
