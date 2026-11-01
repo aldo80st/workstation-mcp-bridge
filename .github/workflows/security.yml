@@ -1,0 +1,72 @@
+name: Independent security tools
+on:
+  push:
+    branches: ["feat/**", "main"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  secrets:
+    name: gitleaks-secrets
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Scan git content for secrets
+        run: |
+          docker run --rm -v "$PWD:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.30.1 dir /repo --no-banner --exit-code 1
+  image-audit:
+    name: trivy-syft-sbom
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Build disposable image for audit
+        run: docker compose build
+      - name: Trivy vulnerability scan (initial advisory mode)
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD:/scan:rw" \
+            aquasec/trivy:0.76.1 image \
+            --severity HIGH,CRITICAL --format json \
+            --output /scan/trivy-report.json workstation-mcp-bridge:local
+      - name: Syft SBOM (SPDX JSON)
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD:/scan:rw" \
+            anchore/syft:v1.55.0 docker:workstation-mcp-bridge:local \
+            -o spdx-json=/scan/sbom.spdx.json
+      - name: Summarize findings without disclosing artifacts
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('trivy-report.json')
+          if p.exists():
+              results=json.loads(p.read_text()).get('Results') or []
+              counts={'HIGH':0,'CRITICAL':0}
+              for result in results:
+                  for item in result.get('Vulnerabilities') or []:
+                      s=item.get('Severity')
+                      if s in counts: counts[s]+=1
+                      if s == 'CRITICAL':
+                          print('CRITICAL', result.get('Target'), item.get('VulnerabilityID'), item.get('PkgName'), 'installed='+str(item.get('InstalledVersion')), 'fixed='+str(item.get('FixedVersion')))
+              print('Trivy:',counts)
+          else:
+              print('Trivy report unavailable (tool failed); scanner evidence incomplete')
+          print('SBOM generated:',Path('sbom.spdx.json').exists())
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: security-scan-results
+          path: |
+            trivy-report.json
+            sbom.spdx.json
+          if-no-files-found: warn
+          retention-days: 7

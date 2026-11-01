@@ -1,0 +1,114 @@
+name: Containers and MCP smoke
+on:
+  push:
+    branches: ["feat/**", "main"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-and-smoke:
+    name: smoke-${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Unit tests
+        run: |
+          python3 -m pip install --break-system-packages pytest
+          python3 -m pytest tests/test_configuration.py -q
+      - name: Compose dry-run
+        run: docker compose config --quiet
+      - name: Open refuses missing user workspace
+        run: |
+          if docker compose -f compose.yaml -f compose.open.yaml config --quiet; then
+            echo 'Open unexpectedly accepted unset workspace'; exit 1
+          fi
+      - name: Prepare disposable fixture
+        run: |
+          printf 'MCP_SMOKE_FIXTURE\n' > workspace/README.txt
+          chmod 644 workspace/README.txt
+          printf 'WMB_HOST_SECRET_MARKER\n' > /tmp/wmb-ci-host-secret.txt
+      - name: Build runtime for actual runner architecture
+        run: docker compose --progress plain build
+      - name: Start restricted runtime
+        env:
+          MCP_HOST_PORT: "18795"
+        run: docker compose up -d --no-build
+      - name: Wait for health
+        env:
+          MCP_HOST_PORT: "18795"
+        run: |
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:18795/healthz; then exit 0; fi
+            sleep 2
+          done
+          docker compose logs --tail=80 workstation-mcp
+          exit 1
+      - name: MCP contract and forbidden call
+        env:
+          MCP_URL: "http://127.0.0.1:18795/mcp"
+        run: python3 -m unittest discover -s tests/integration -p test_mcp.py -v
+      - name: Verify optional tunnel image manifests
+        run: |
+          docker buildx imagetools inspect ghcr.io/openai/tunnel-client:v0.0.19 | grep -E 'linux/(amd64|arm64)'
+      - name: Verify optional tunnel Compose config without real credentials
+        env:
+          CONTROL_PLANE_TUNNEL_ID: "tunnel_0123456789abcdef0123456789abcdef"
+        run: |
+          mkdir -p secrets
+          printf 'synthetic-unused-key-for-compose-check\n' > secrets/control-plane-api-key
+          chmod 600 secrets/control-plane-api-key
+          docker compose -f compose.yaml -f compose.tunnel.yaml --profile tunnel config --quiet
+          docker compose -f compose.yaml -f compose.tunnel.yaml --profile tunnel run --rm --no-deps tunnel-client --help >/tmp/wmb-tunnel-help.txt
+          test -s /tmp/wmb-tunnel-help.txt
+          rm secrets/control-plane-api-key
+      - name: Stop restricted before open profile test
+        env:
+          MCP_HOST_PORT: "18795"
+        run: docker compose down
+      - name: Start opt-in Open using disposable workspace
+        env:
+          MCP_HOST_PORT: "18795"
+          MCP_OPEN_WORKSPACE_PATH: ${{ github.workspace }}/test-open
+          MCP_OPEN_ACK: I_ACCEPT_OPEN_MODE_RISKS
+        run: |
+          mkdir -p test-open
+          chmod 0777 test-open
+          docker compose -f compose.yaml -f compose.open.yaml up -d --no-build
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18795/healthz; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Open permitted write and command invocation
+        env:
+          MCP_URL: "http://127.0.0.1:18795/mcp"
+        run: |
+          python3 -m unittest discover -s tests/integration -p test_open.py -v
+          grep -q 'OPEN_SMOKE_OK' test-open/allowed.txt
+          for i in $(seq 1 20); do
+            if [ -f test-open/command.txt ]; then break; fi
+            sleep 1
+          done
+          grep -q 'WMB_OPEN_COMMAND_OK' test-open/command.txt
+      - name: Runtime diagnostics on failure
+        if: failure()
+        env:
+          MCP_HOST_PORT: "18795"
+        run: |
+          docker compose ps || true
+          docker compose logs --tail=100 workstation-mcp || true
+      - name: Teardown
+        if: always()
+        env:
+          MCP_HOST_PORT: "18795"
+        run: docker compose -f compose.yaml -f compose.open.yaml down --remove-orphans || true
+          docker compose down --remove-orphans || true
